@@ -53,19 +53,17 @@ After the script completes, reconnect from VS Code. VS Code should reinstall its
 
 ## Curl Usage
 
-After publishing this repository to GitHub, replace `YOUR_GITHUB_USER` with your GitHub user or organization:
-
 ```bash
-BASE_URL="https://raw.githubusercontent.com/YOUR_GITHUB_USER/fix-vscode-server/master"
+BASE_URL="https://raw.githubusercontent.com/luo-luo-o/fix-vscode-server/main"
 curl -fsSL "$BASE_URL/fix-vscode-server.sh" | FIX_VSCODE_SERVER_BASE_URL="$BASE_URL" bash
 ```
 
 The `FIX_VSCODE_SERVER_BASE_URL` value lets the downloaded entrypoint fetch `fix-vscode-server-ssh.sh` or `fix-vscode-server-devcontainer.sh` from the same repository.
 
-If you update `DEFAULT_BASE_URL` inside `fix-vscode-server.sh` and `fix-vscode-server-devcontainer.sh` before publishing, users can also run:
+Because `DEFAULT_BASE_URL` is set in the entrypoint scripts, users can also run:
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/YOUR_GITHUB_USER/fix-vscode-server/master/fix-vscode-server.sh" | bash
+curl -fsSL "https://raw.githubusercontent.com/luo-luo-o/fix-vscode-server/main/fix-vscode-server.sh" | bash
 ```
 
 ## Validation

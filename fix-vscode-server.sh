@@ -15,7 +15,7 @@ log_err() {
     exit 1
 }
 
-DEFAULT_BASE_URL="https://raw.githubusercontent.com/YOUR_GITHUB_USER/fix-vscode-server/master"
+DEFAULT_BASE_URL="https://raw.githubusercontent.com/luo-luo-o/fix-vscode-server/main"
 BASE_URL="${FIX_VSCODE_SERVER_BASE_URL:-$DEFAULT_BASE_URL}"
 BASE_URL="${BASE_URL%/}"
 
@@ -63,10 +63,6 @@ download_helpers() {
 
     if ! command -v curl >/dev/null 2>&1; then
         log_err "curl is required when helper scripts are not available locally."
-    fi
-
-    if [[ "$BASE_URL" == *"YOUR_GITHUB_USER"* ]]; then
-        log_err "Helper scripts were not found locally. Set FIX_VSCODE_SERVER_BASE_URL to your raw GitHub directory URL."
     fi
 
     for script in fix-vscode-server-ssh.sh fix-vscode-server-devcontainer.sh; do
