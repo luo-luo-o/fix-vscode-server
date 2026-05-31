@@ -2,6 +2,8 @@
 
 [English](README.md)
 
+如果你觉得好用的话，请给个 Star ， 谢谢！( •̀ ω •́ )✧
+
 一个 Bash 工具，用于修复旧版 Linux 系统上 VS Code Server 启动失败的问题。这类问题通常是系统 GLIBC 版本太旧，无法满足新版 VS Code Server 二进制文件要求，例如 Ubuntu 18.04。
 
 主入口是 `fix-vscode-server.sh`。先根据 VS Code Server 安装的位置选择使用方式：

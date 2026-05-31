@@ -4,6 +4,9 @@
 
 A Bash utility for fixing VS Code Server startup failures on older Linux systems where the system GLIBC is too old for the latest VS Code Server binary, such as Ubuntu 18.04.
 
+If you think it is usful, please give me a Star!
+Thanks ( •̀ ω •́ )✧
+
 The main entrypoint is `fix-vscode-server.sh`. Choose the path by where VS Code
 installs its server:
 
