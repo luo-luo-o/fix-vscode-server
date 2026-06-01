@@ -31,11 +31,11 @@ has_container_marker() {
     return 1
 }
 
-if ! has_container_marker; then
-    log_err "No container marker was detected. Use fix-vscode-server.sh on SSH hosts, or set FIX_VSCODE_SERVER_DOCKERFILE_BUILD=1 in a Dockerfile RUN step."
-fi
-
 if [ -z "${FIX_VSCODE_SERVER_DOCKERFILE_BUILD:-}" ]; then
+    if ! has_container_marker; then
+        log_err "Use fix-vscode-server.sh on SSH hosts, or set FIX_VSCODE_SERVER_DOCKERFILE_BUILD=1 in a Dockerfile RUN step."
+    fi
+
     printf '%b[ERROR]%b %s\n' "$RED" "$NC" "Do not repair an already-created container from inside the container." >&2
     printf '%b[ERROR]%b %s\n' "$RED" "$NC" "Please add the Dockerfile build-time repair block, rebuild the image, and recreate the container." >&2
     printf '%b[ERROR]%b %s\n' "$RED" "$NC" "不要在已经创建好的容器内部执行修复。" >&2

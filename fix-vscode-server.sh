@@ -194,9 +194,6 @@ run_target_script() {
                 is_container_marker && container_rebuild_error
                 log_err "Use --devcontainer only from a Dockerfile RUN step with FIX_VSCODE_SERVER_DOCKERFILE_BUILD=1."
             fi
-            if ! is_container_marker; then
-                log_err "FIX_VSCODE_SERVER_DOCKERFILE_BUILD=1 was set, but no container marker was detected."
-            fi
             target_script="fix-vscode-server-devcontainer.sh"
             ;;
         *)
@@ -230,9 +227,6 @@ case "$REQUESTED_MODE" in
         ;;
     auto)
         if has_dockerfile_build_flag; then
-            if ! is_container_marker; then
-                log_err "FIX_VSCODE_SERVER_DOCKERFILE_BUILD=1 was set, but no container marker was detected."
-            fi
             MODE="devcontainer"
         elif is_container_marker; then
             container_rebuild_error
