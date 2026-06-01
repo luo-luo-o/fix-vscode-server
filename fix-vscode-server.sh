@@ -23,6 +23,13 @@ BASE_URL=""
 SOURCE_NAME=""
 REQUESTED_MODE="auto"
 MODE_WAS_SET=false
+TEMP_DIR=""
+
+cleanup() {
+    if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
+        rm -rf "$TEMP_DIR"
+    fi
+}
 
 has_dockerfile_build_flag() {
     [ -n "${FIX_VSCODE_SERVER_DOCKERFILE_BUILD:-}" ]
@@ -180,7 +187,6 @@ run_target_script() {
     local mode="$1"
     local target_script
     local local_dir
-    local temp_dir
 
     case "$mode" in
         ssh)
@@ -211,12 +217,12 @@ run_target_script() {
         log_warn "$target_script was not found next to fix-vscode-server.sh"
     fi
 
-    temp_dir="$(mktemp -d)"
-    trap 'rm -rf "$temp_dir"' EXIT
+    TEMP_DIR="$(mktemp -d)"
+    trap cleanup EXIT
 
     select_download_source "$target_script"
-    download_helper "$temp_dir" "$target_script"
-    bash "$temp_dir/$target_script"
+    download_helper "$TEMP_DIR" "$target_script"
+    bash "$TEMP_DIR/$target_script"
 }
 
 parse_args "$@"
