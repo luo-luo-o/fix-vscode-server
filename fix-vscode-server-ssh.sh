@@ -16,11 +16,11 @@ log_err() {
 }
 
 SUDO=""
-if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then
+if [ "$EUID" -ne 0 ] && command -v sudo >/dev/null 2>&1; then
     SUDO="sudo"
 fi
 
-if [ "$(id -u)" -eq 0 ]; then
+if [ "$EUID" -eq 0 ]; then
     log_err "Do not run the SSH repair script as root. Run it as the target SSH user with sudo privileges."
 fi
 
@@ -29,12 +29,83 @@ apt_package_for_tool() {
         ar)
             printf '%s\n' "binutils"
             ;;
+<<<<<<< HEAD
+=======
+        cat|chmod|chown|cp|dirname|ln|mkdir|mktemp|rm|sleep|tee|touch|true|uname|whoami)
+            printf '%s\n' "coreutils"
+            ;;
+        find)
+            printf '%s\n' "findutils"
+            ;;
+        xz)
+            printf '%s\n' "xz-utils"
+            ;;
+>>>>>>> e04bb62 (fix: improve error handling for container marker detection)
         *)
             printf '%s\n' "$1"
             ;;
     esac
 }
 
+<<<<<<< HEAD
+=======
+join_words() {
+    local IFS=' '
+    printf '%s' "$*"
+}
+
+package_in_list() {
+    local package="$1"
+    local existing
+
+    shift
+    for existing in "$@"; do
+        [ "$existing" = "$package" ] && return 0
+    done
+
+    return 1
+}
+
+apt_install_packages() {
+    if [ -n "$SUDO" ]; then
+        $SUDO apt-get install -y --no-install-recommends "$@"
+    else
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@"
+    fi
+}
+
+ensure_required_tools() {
+    local missing_tools=()
+    local missing_packages=()
+    local package
+    local tool
+
+    for tool in "${REQUIRED_TOOLS[@]}"; do
+        if ! command -v "$tool" >/dev/null 2>&1; then
+            package="$(apt_package_for_tool "$tool")"
+            missing_tools+=("$tool")
+
+            if ! package_in_list "$package" "${missing_packages[@]}"; then
+                missing_packages+=("$package")
+            fi
+        fi
+    done
+
+    if [ "${#missing_packages[@]}" -eq 0 ]; then
+        return 0
+    fi
+
+    if ! command -v apt-get >/dev/null 2>&1; then
+        log_err "Missing required tools ($(join_words "${missing_tools[@]}")), and apt-get was not found."
+    fi
+
+    log_warn "Missing required tools: $(join_words "${missing_tools[@]}")"
+    log_warn "Installing packages with apt-get: $(join_words "${missing_packages[@]}")"
+    $SUDO apt-get update && apt_install_packages "${missing_packages[@]}" ||
+        log_err "Failed to install required packages. Check network access and apt sources."
+}
+
+>>>>>>> e04bb62 (fix: improve error handling for container marker detection)
 log_info "Checking SSH host environment..."
 
 ARCH="$(uname -m)"
@@ -59,6 +130,7 @@ case "$ARCH" in
         ;;
 esac
 
+<<<<<<< HEAD
 REQUIRED_TOOLS=("curl" "ar" "zstd" "patchelf" "tar")
 for tool in "${REQUIRED_TOOLS[@]}"; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -68,6 +140,34 @@ for tool in "${REQUIRED_TOOLS[@]}"; do
             log_err "Failed to install package $package for tool $tool. Check network access and apt sources."
     fi
 done
+=======
+REQUIRED_TOOLS=(
+    "curl"
+    "ar"
+    "zstd"
+    "xz"
+    "patchelf"
+    "tar"
+    "find"
+    "grep"
+    "sed"
+    "tee"
+    "cat"
+    "chmod"
+    "chown"
+    "cp"
+    "dirname"
+    "ln"
+    "mkdir"
+    "mktemp"
+    "rm"
+    "sleep"
+    "true"
+    "uname"
+    "whoami"
+)
+ensure_required_tools
+>>>>>>> e04bb62 (fix: improve error handling for container marker detection)
 
 log_info "Preparing GLIBC patch directory: $PATCH_DIR"
 $SUDO mkdir -p "$PATCH_DIR" || log_err "Failed to create $PATCH_DIR"

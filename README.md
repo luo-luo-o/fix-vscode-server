@@ -32,7 +32,7 @@ This project is not intended for Windows, macOS, or primary workstation setup.
 
 The scripts may:
 
-- Install missing tools: `curl`, `ar`, `zstd`, `patchelf`, and `tar`
+- Install missing tools/packages: `curl`, `binutils` (`ar`), `zstd`, `xz-utils` (`xz`), `patchelf`, `tar`, `findutils`, `grep`, `sed`, and `coreutils`
 - Create or update `/opt/vscode_glibc_patch/lib`
 - Remove `~/.vscode-server` so VS Code reinstalls the server on the next connection
 
@@ -114,11 +114,21 @@ ARG FIX_VSCODE_SERVER_GITHUB_URL="https://raw.githubusercontent.com/luo-luo-o/fi
 ARG FIX_VSCODE_SERVER_GITEE_URL="https://gitee.com/Hluoluoo/fix-vscode-server/raw/main/fix-vscode-server.sh"
 
 RUN set -eux; \
-    if ! command -v bash >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then \
-        apt-get update; \
-        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends bash curl ca-certificates; \
-        rm -rf /var/lib/apt/lists/*; \
-    fi; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        bash \
+        ca-certificates \
+        curl \
+        binutils \
+        zstd \
+        xz-utils \
+        patchelf \
+        tar \
+        findutils \
+        grep \
+        sed \
+        coreutils; \
+    rm -rf /var/lib/apt/lists/*; \
     fix_script="$(mktemp)"; \
     if ! curl -fsSL --connect-timeout 2 --max-time 5 "$FIX_VSCODE_SERVER_GITHUB_URL" -o "$fix_script"; then \
         curl -fsSL "$FIX_VSCODE_SERVER_GITEE_URL" -o "$fix_script"; \

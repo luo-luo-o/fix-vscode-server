@@ -30,7 +30,7 @@
 
 脚本可能会：
 
-- 安装缺失工具：`curl`、`ar`、`zstd`、`patchelf`、`tar`
+- 安装缺失工具/软件包：`curl`、`binutils`（提供 `ar`）、`zstd`、`xz-utils`（提供 `xz`）、`patchelf`、`tar`、`findutils`、`grep`、`sed`、`coreutils`
 - 创建或更新 `/opt/vscode_glibc_patch/lib`
 - 删除 `~/.vscode-server`，让 VS Code 下次连接时重新安装 server
 
@@ -100,11 +100,21 @@ ARG FIX_VSCODE_SERVER_GITHUB_URL="https://raw.githubusercontent.com/luo-luo-o/fi
 ARG FIX_VSCODE_SERVER_GITEE_URL="https://gitee.com/Hluoluoo/fix-vscode-server/raw/main/fix-vscode-server.sh"
 
 RUN set -eux; \
-    if ! command -v bash >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then \
-        apt-get update; \
-        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends bash curl ca-certificates; \
-        rm -rf /var/lib/apt/lists/*; \
-    fi; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        bash \
+        ca-certificates \
+        curl \
+        binutils \
+        zstd \
+        xz-utils \
+        patchelf \
+        tar \
+        findutils \
+        grep \
+        sed \
+        coreutils; \
+    rm -rf /var/lib/apt/lists/*; \
     fix_script="$(mktemp)"; \
     if ! curl -fsSL --connect-timeout 2 --max-time 5 "$FIX_VSCODE_SERVER_GITHUB_URL" -o "$fix_script"; then \
         curl -fsSL "$FIX_VSCODE_SERVER_GITEE_URL" -o "$fix_script"; \
