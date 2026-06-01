@@ -29,11 +29,6 @@ apt_package_for_tool() {
         ar)
             printf '%s\n' "binutils"
             ;;
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> 3624553 (fix: improve error handling for container marker detection)
         cat|chmod|chown|cp|dirname|ln|mkdir|mktemp|rm|sleep|tee|touch|true|uname|whoami)
             printf '%s\n' "coreutils"
             ;;
@@ -43,21 +38,12 @@ apt_package_for_tool() {
         xz)
             printf '%s\n' "xz-utils"
             ;;
-<<<<<<< HEAD
->>>>>>> e04bb62 (fix: improve error handling for container marker detection)
-=======
->>>>>>> 3624553 (fix: improve error handling for container marker detection)
         *)
             printf '%s\n' "$1"
             ;;
     esac
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> 3624553 (fix: improve error handling for container marker detection)
 join_words() {
     local IFS=' '
     printf '%s' "$*"
@@ -77,7 +63,7 @@ package_in_list() {
 
 apt_install_packages() {
     if [ -n "$SUDO" ]; then
-        $SUDO apt-get install -y --no-install-recommends "$@"
+        $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@"
     else
         DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@"
     fi
@@ -108,16 +94,16 @@ ensure_required_tools() {
         log_err "Missing required tools ($(join_words "${missing_tools[@]}")), and apt-get was not found."
     fi
 
+    if [ "$EUID" -ne 0 ] && [ -z "$SUDO" ]; then
+        log_err "Missing required tools ($(join_words "${missing_tools[@]}")), and sudo was not found."
+    fi
+
     log_warn "Missing required tools: $(join_words "${missing_tools[@]}")"
     log_warn "Installing packages with apt-get: $(join_words "${missing_packages[@]}")"
     $SUDO apt-get update && apt_install_packages "${missing_packages[@]}" ||
         log_err "Failed to install required packages. Check network access and apt sources."
 }
 
-<<<<<<< HEAD
->>>>>>> e04bb62 (fix: improve error handling for container marker detection)
-=======
->>>>>>> 3624553 (fix: improve error handling for container marker detection)
 log_info "Checking SSH host environment..."
 
 ARCH="$(uname -m)"
@@ -142,20 +128,6 @@ case "$ARCH" in
         ;;
 esac
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-REQUIRED_TOOLS=("curl" "ar" "zstd" "patchelf" "tar")
-for tool in "${REQUIRED_TOOLS[@]}"; do
-    if ! command -v "$tool" >/dev/null 2>&1; then
-        package="$(apt_package_for_tool "$tool")"
-        log_warn "Missing tool $tool; installing package $package with apt-get..."
-        $SUDO apt-get update && $SUDO apt-get install -y "$package" ||
-            log_err "Failed to install package $package for tool $tool. Check network access and apt sources."
-    fi
-done
-=======
-=======
->>>>>>> 3624553 (fix: improve error handling for container marker detection)
 REQUIRED_TOOLS=(
     "curl"
     "ar"
@@ -182,10 +154,6 @@ REQUIRED_TOOLS=(
     "whoami"
 )
 ensure_required_tools
-<<<<<<< HEAD
->>>>>>> e04bb62 (fix: improve error handling for container marker detection)
-=======
->>>>>>> 3624553 (fix: improve error handling for container marker detection)
 
 log_info "Preparing GLIBC patch directory: $PATCH_DIR"
 $SUDO mkdir -p "$PATCH_DIR" || log_err "Failed to create $PATCH_DIR"

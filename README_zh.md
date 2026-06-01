@@ -96,8 +96,8 @@ Docker/Dev Container 场景必须在构建镜像时进行修复。**不要在已
 ```dockerfile
 USER root
 
-ARG FIX_VSCODE_SERVER_GITHUB_URL="https://raw.githubusercontent.com/luo-luo-o/fix-vscode-server/main/fix-vscode-server.sh"
-ARG FIX_VSCODE_SERVER_GITEE_URL="https://gitee.com/Hluoluoo/fix-vscode-server/raw/main/fix-vscode-server.sh"
+ARG FIX_VSCODE_SERVER_GITHUB_BASE_URL="https://raw.githubusercontent.com/luo-luo-o/fix-vscode-server/main"
+ARG FIX_VSCODE_SERVER_GITEE_BASE_URL="https://gitee.com/Hluoluoo/fix-vscode-server/raw/main"
 
 RUN set -eux; \
     apt-get update; \
@@ -116,10 +116,12 @@ RUN set -eux; \
         coreutils; \
     rm -rf /var/lib/apt/lists/*; \
     fix_script="$(mktemp)"; \
-    if ! curl -fsSL --connect-timeout 2 --max-time 5 "$FIX_VSCODE_SERVER_GITHUB_URL" -o "$fix_script"; then \
-        curl -fsSL "$FIX_VSCODE_SERVER_GITEE_URL" -o "$fix_script"; \
+    fix_source="$FIX_VSCODE_SERVER_GITHUB_BASE_URL"; \
+    if ! curl -fsSL --connect-timeout 2 --max-time 5 "$fix_source/fix-vscode-server.sh" -o "$fix_script"; then \
+        fix_source="$FIX_VSCODE_SERVER_GITEE_BASE_URL"; \
+        curl -fsSL "$fix_source/fix-vscode-server.sh" -o "$fix_script"; \
     fi; \
-    FIX_VSCODE_SERVER_DOCKERFILE_BUILD=1 bash "$fix_script"; \
+    FIX_VSCODE_SERVER_BASE_URL="$fix_source" FIX_VSCODE_SERVER_DOCKERFILE_BUILD=1 bash "$fix_script"; \
     rm -f "$fix_script"
 
 ENV VSCODE_SERVER_CUSTOM_GLIBC_PATH=/opt/vscode_glibc_patch/lib \
