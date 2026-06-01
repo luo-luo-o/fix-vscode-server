@@ -24,6 +24,17 @@ if [ "$(id -u)" -eq 0 ]; then
     log_err "Do not run the SSH repair script as root. Run it as the target SSH user with sudo privileges."
 fi
 
+apt_package_for_tool() {
+    case "$1" in
+        ar)
+            printf '%s\n' "binutils"
+            ;;
+        *)
+            printf '%s\n' "$1"
+            ;;
+    esac
+}
+
 log_info "Checking SSH host environment..."
 
 ARCH="$(uname -m)"
@@ -51,9 +62,10 @@ esac
 REQUIRED_TOOLS=("curl" "ar" "zstd" "patchelf" "tar")
 for tool in "${REQUIRED_TOOLS[@]}"; do
     if ! command -v "$tool" >/dev/null 2>&1; then
-        log_warn "Missing tool $tool; installing it with apt-get..."
-        $SUDO apt-get update && $SUDO apt-get install -y "$tool" ||
-            log_err "Failed to install $tool. Check network access and apt sources."
+        package="$(apt_package_for_tool "$tool")"
+        log_warn "Missing tool $tool; installing package $package with apt-get..."
+        $SUDO apt-get update && $SUDO apt-get install -y "$package" ||
+            log_err "Failed to install package $package for tool $tool. Check network access and apt sources."
     fi
 done
 
