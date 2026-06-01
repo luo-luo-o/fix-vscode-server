@@ -30,7 +30,10 @@ apt_package_for_tool() {
             printf '%s\n' "binutils"
             ;;
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> 3624553 (fix: improve error handling for container marker detection)
         cat|chmod|chown|cp|dirname|ln|mkdir|mktemp|rm|sleep|tee|touch|true|uname|whoami)
             printf '%s\n' "coreutils"
             ;;
@@ -40,7 +43,10 @@ apt_package_for_tool() {
         xz)
             printf '%s\n' "xz-utils"
             ;;
+<<<<<<< HEAD
 >>>>>>> e04bb62 (fix: improve error handling for container marker detection)
+=======
+>>>>>>> 3624553 (fix: improve error handling for container marker detection)
         *)
             printf '%s\n' "$1"
             ;;
@@ -48,7 +54,10 @@ apt_package_for_tool() {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> 3624553 (fix: improve error handling for container marker detection)
 join_words() {
     local IFS=' '
     printf '%s' "$*"
@@ -105,7 +114,10 @@ ensure_required_tools() {
         log_err "Failed to install required packages. Check network access and apt sources."
 }
 
+<<<<<<< HEAD
 >>>>>>> e04bb62 (fix: improve error handling for container marker detection)
+=======
+>>>>>>> 3624553 (fix: improve error handling for container marker detection)
 log_info "Checking SSH host environment..."
 
 ARCH="$(uname -m)"
@@ -131,6 +143,7 @@ case "$ARCH" in
 esac
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 REQUIRED_TOOLS=("curl" "ar" "zstd" "patchelf" "tar")
 for tool in "${REQUIRED_TOOLS[@]}"; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -141,6 +154,8 @@ for tool in "${REQUIRED_TOOLS[@]}"; do
     fi
 done
 =======
+=======
+>>>>>>> 3624553 (fix: improve error handling for container marker detection)
 REQUIRED_TOOLS=(
     "curl"
     "ar"
@@ -167,7 +182,10 @@ REQUIRED_TOOLS=(
     "whoami"
 )
 ensure_required_tools
+<<<<<<< HEAD
 >>>>>>> e04bb62 (fix: improve error handling for container marker detection)
+=======
+>>>>>>> 3624553 (fix: improve error handling for container marker detection)
 
 log_info "Preparing GLIBC patch directory: $PATCH_DIR"
 $SUDO mkdir -p "$PATCH_DIR" || log_err "Failed to create $PATCH_DIR"
