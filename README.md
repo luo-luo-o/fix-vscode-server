@@ -114,21 +114,11 @@ ARG FIX_VSCODE_SERVER_GITHUB_BASE_URL="https://raw.githubusercontent.com/luo-luo
 ARG FIX_VSCODE_SERVER_GITEE_BASE_URL="https://gitee.com/Hluoluoo/fix-vscode-server/raw/main"
 
 RUN set -eux; \
-    apt-get update; \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        bash \
-        ca-certificates \
-        curl \
-        binutils \
-        zstd \
-        xz-utils \
-        patchelf \
-        tar \
-        findutils \
-        grep \
-        sed \
-        coreutils; \
-    rm -rf /var/lib/apt/lists/*; \
+    if ! command -v bash >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1 || [ ! -f /etc/ssl/certs/ca-certificates.crt ]; then \
+        apt-get update; \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends bash curl ca-certificates; \
+        rm -rf /var/lib/apt/lists/*; \
+    fi; \
     fix_script="$(mktemp)"; \
     fix_source="$FIX_VSCODE_SERVER_GITHUB_BASE_URL"; \
     if ! curl -fsSL --connect-timeout 2 --max-time 5 "$fix_source/fix-vscode-server.sh" -o "$fix_script"; then \
