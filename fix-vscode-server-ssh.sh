@@ -15,6 +15,12 @@ log_err() {
     exit 1
 }
 
+OS_ID="unknown"
+OS_VERSION_ID="unknown"
+OS_PRETTY_NAME="unknown"
+CPP_SYMBOL_REQUIRED="GLIBCXX_3.4.26"
+CPP_RUNTIME_PATCHED=false
+
 SUDO=""
 if [ "$EUID" -ne 0 ] && command -v sudo >/dev/null 2>&1; then
     SUDO="sudo"
@@ -26,10 +32,10 @@ fi
 
 apt_package_for_tool() {
     case "$1" in
-        ar)
+        ar|strings)
             printf '%s\n' "binutils"
             ;;
-        cat|chmod|chown|cp|dirname|ln|mkdir|mktemp|rm|sleep|tee|touch|true|uname|whoami)
+        basename|cat|chmod|chown|cp|dirname|ln|mkdir|mktemp|rm|sleep|sort|tail|tee|touch|true|uname|whoami)
             printf '%s\n' "coreutils"
             ;;
         find)
@@ -42,6 +48,35 @@ apt_package_for_tool() {
             printf '%s\n' "$1"
             ;;
     esac
+}
+
+load_os_release() {
+    if [ -f /etc/os-release ]; then
+        # shellcheck disable=SC1091
+        . /etc/os-release
+        OS_ID="${ID:-unknown}"
+        OS_VERSION_ID="${VERSION_ID:-unknown}"
+        OS_PRETTY_NAME="${PRETTY_NAME:-$OS_ID $OS_VERSION_ID}"
+    fi
+}
+
+extract_deb_payload() {
+    local deb_path="$1"
+    local target_dir="$2"
+
+    mkdir -p "$target_dir"
+    (
+        cd "$target_dir"
+        ar x "$deb_path"
+        if [ -f data.tar.zst ]; then
+            zstd -d data.tar.zst
+            tar -xf data.tar
+        elif [ -f data.tar.xz ]; then
+            tar -xf data.tar.xz
+        else
+            log_err "Expected data.tar.zst or data.tar.xz was not found in $deb_path."
+        fi
+    )
 }
 
 join_words() {
@@ -104,11 +139,114 @@ ensure_required_tools() {
         log_err "Failed to install required packages. Check network access and apt sources."
 }
 
+find_system_libstdcpp() {
+    find /usr/lib /lib -name 'libstdc++.so.6' -print -quit 2>/dev/null
+}
+
+system_libstdcpp_needs_patch() {
+    local libstdcpp_path
+
+    libstdcpp_path="$(find_system_libstdcpp)"
+    if [ -z "$libstdcpp_path" ]; then
+        log_warn "System libstdc++.so.6 was not found; enabling C++ runtime patch."
+        return 0
+    fi
+
+    if strings "$libstdcpp_path" 2>/dev/null | grep -Fq "$CPP_SYMBOL_REQUIRED"; then
+        return 1
+    fi
+
+    log_warn "System libstdc++.so.6 at $libstdcpp_path does not provide $CPP_SYMBOL_REQUIRED."
+    return 0
+}
+
+select_cpp_runtime_source() {
+    case "$ARCH" in
+        x86_64)
+            CPP_REPO_BASE="http://mirrors.kernel.org/ubuntu/pool/main/g"
+            CPP_DEB_ARCH="amd64"
+            ;;
+        aarch64)
+            CPP_REPO_BASE="http://ports.ubuntu.com/ubuntu-ports/pool/main/g"
+            CPP_DEB_ARCH="arm64"
+            ;;
+        armv7l|armv6l)
+            CPP_REPO_BASE="http://ports.ubuntu.com/ubuntu-ports/pool/main/g"
+            CPP_DEB_ARCH="armhf"
+            ;;
+        *)
+            log_err "Unsupported architecture for C++ runtime patch: $ARCH"
+            ;;
+    esac
+}
+
+pick_cpp_runtime_deb() {
+    local repo_dir="$1"
+    local package_prefix="$2"
+
+    curl -fsSL "$repo_dir/" |
+        grep -oE "${package_prefix}_[^\"<> ]+_${CPP_DEB_ARCH}\\.deb" |
+        sort -Vu |
+        tail -n1
+}
+
+patch_cpp_runtime() {
+    local gcc_dir
+    local libgcc_deb=""
+    local libgcc_path=""
+    local libstdcpp_deb=""
+    local libstdcpp_path=""
+    local repo_dir=""
+
+    select_cpp_runtime_source
+
+    for gcc_dir in gcc-12 gcc-11 gcc-10 gcc-9; do
+        repo_dir="$CPP_REPO_BASE/$gcc_dir"
+        libstdcpp_deb="$(pick_cpp_runtime_deb "$repo_dir" 'libstdc\+\+6' || true)"
+        libgcc_deb="$(pick_cpp_runtime_deb "$repo_dir" 'libgcc(-s1|1)' || true)"
+        if [ -n "$libstdcpp_deb" ] && [ -n "$libgcc_deb" ]; then
+            break
+        fi
+    done
+
+    [ -n "$libstdcpp_deb" ] || log_err "Failed to locate libstdc++6 package for $ARCH."
+    [ -n "$libgcc_deb" ] || log_err "Failed to locate libgcc package for $ARCH."
+
+    log_warn "Applying C++ runtime patch for $OS_PRETTY_NAME on $ARCH."
+    log_info "Downloading libstdc++6 package: $libstdcpp_deb"
+    curl -fL -o "$TEMP_DIR/libstdcpp.deb" "$repo_dir/$libstdcpp_deb" ||
+        log_err "Failed to download $repo_dir/$libstdcpp_deb"
+    log_info "Downloading libgcc package: $libgcc_deb"
+    curl -fL -o "$TEMP_DIR/libgcc.deb" "$repo_dir/$libgcc_deb" ||
+        log_err "Failed to download $repo_dir/$libgcc_deb"
+
+    extract_deb_payload "$TEMP_DIR/libstdcpp.deb" "$TEMP_DIR/libstdcpp"
+    extract_deb_payload "$TEMP_DIR/libgcc.deb" "$TEMP_DIR/libgcc"
+
+    libstdcpp_path="$(find "$TEMP_DIR/libstdcpp" -name 'libstdc++.so.6*' -type f | sort | tail -n1)"
+    [ -n "$libstdcpp_path" ] || log_err "Failed to find libstdc++.so.6 in $libstdcpp_deb"
+    libgcc_path="$(find "$TEMP_DIR/libgcc" -name 'libgcc_s.so.1' -type f -print -quit)"
+    [ -n "$libgcc_path" ] || log_err "Failed to find libgcc_s.so.1 in $libgcc_deb"
+
+    $SUDO cp -f "$libstdcpp_path" "$PATCH_DIR/$(basename "$libstdcpp_path")"
+    $SUDO ln -sfn "$PATCH_DIR/$(basename "$libstdcpp_path")" "$PATCH_DIR/libstdc++.so.6"
+    $SUDO cp -f "$libgcc_path" "$PATCH_DIR/libgcc_s.so.1"
+
+    if strings "$PATCH_DIR/libstdc++.so.6" 2>/dev/null | grep -Fq "$CPP_SYMBOL_REQUIRED"; then
+        CPP_RUNTIME_PATCHED=true
+        log_info "C++ runtime patch provides $CPP_SYMBOL_REQUIRED."
+    else
+        log_err "Patched libstdc++.so.6 still does not provide $CPP_SYMBOL_REQUIRED."
+    fi
+}
+
 log_info "Checking SSH host environment..."
 
 ARCH="$(uname -m)"
+load_os_release
 GLIBC_VER="2.35"
 PATCH_DIR="/opt/vscode_glibc_patch/lib"
+log_info "Detected host: $OS_PRETTY_NAME ($ARCH)"
 
 case "$ARCH" in
     x86_64)
@@ -139,6 +277,7 @@ REQUIRED_TOOLS=(
     "grep"
     "sed"
     "tee"
+    "basename"
     "cat"
     "chmod"
     "chown"
@@ -149,6 +288,9 @@ REQUIRED_TOOLS=(
     "mktemp"
     "rm"
     "sleep"
+    "sort"
+    "strings"
+    "tail"
     "true"
     "uname"
     "whoami"
@@ -181,15 +323,9 @@ done
 [ "$SUCCESS" = true ] || log_err "Failed to download GLIBC package."
 
 log_info "Extracting GLIBC libraries..."
-ar x libc6.deb || log_err "Failed to unpack DEB package with ar."
+extract_deb_payload "$TEMP_DIR/libc6.deb" "$TEMP_DIR/glibc"
 
-if [ -f data.tar.zst ]; then
-    zstd -d data.tar.zst && tar -xf data.tar
-elif [ -f data.tar.xz ]; then
-    tar -xf data.tar.xz
-else
-    log_err "Expected data.tar.zst or data.tar.xz was not found."
-fi
+cd "$TEMP_DIR/glibc"
 
 LINKER_FILE="$(find . -name "$LINKER_NAME" -print -quit)"
 [ -n "$LINKER_FILE" ] || log_err "Could not find linker $LINKER_NAME in extracted package."
@@ -210,6 +346,12 @@ if "$LINKER_PATH" --library-path "$PATCH_DIR" /bin/true; then
     log_info "Patched linker validation passed."
 else
     log_err "Patched linker could not start /bin/true."
+fi
+
+if system_libstdcpp_needs_patch; then
+    patch_cpp_runtime
+else
+    log_info "System libstdc++.so.6 already provides $CPP_SYMBOL_REQUIRED; skipping C++ runtime patch."
 fi
 
 log_info "Configuring SSH environment injection..."
@@ -243,9 +385,15 @@ rm -rf "$HOME/.vscode-server"
 
 log_info "------------------------------------------------"
 log_info "SSH repair completed successfully."
+log_info "Host: $OS_PRETTY_NAME"
 log_info "Architecture: $ARCH"
 log_info "GLIBC patch directory: $PATCH_DIR"
 log_info "Patchelf: $PATCHELF_BIN"
 log_info "Linker: $LINKER_ALIAS"
+if [ "$CPP_RUNTIME_PATCHED" = true ]; then
+    log_info "C++ runtime patch: enabled"
+else
+    log_info "C++ runtime patch: not needed"
+fi
 log_info "Reconnect from VS Code and click Retry if prompted."
 log_info "------------------------------------------------"
